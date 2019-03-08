@@ -1,36 +1,15 @@
----
-title: "Scoring Qualtrics data with scorequaltrics"
-author: "Dani Cosme"
-date: "`r Sys.Date()`"
-output:
-  md_document:
-    variant: markdown_github
-  pdf_document:
-    toc: yes
-  html_document:
-    code_folding: show
-    df_print: paged
-    highlight: tango
-    theme: united
-    toc: yes
-    toc_float:
-      collapsed: yes
-      smooth_scroll: yes
----
-
-```{r setup, include=FALSE}
-knitr::opts_chunk$set(error = FALSE, warning = FALSE, message = FALSE)
-```
-
 This script is a template workflow for scoring Qualtrics data using the [`scorequaltrics`](https://github.com/jflournoy/qualtrics) package built by [John Flournoy](https://github.com/jflournoy) and is a pared down version of the tutorial he created for the TDS study.
 
-## Generate a credentials file
+Generate a credentials file
+---------------------------
+
 To pull data from Qualtrics, you need a credentials file with an API token associated with your account. To create the file, follow these steps.
 
-1. Generate an API token for Qualtrics. Follow the steps outlined [here](https://www.qualtrics.com/support/integrations/api-integration/overview/)
+1.  Generate an API token for Qualtrics. Follow the steps outlined [here](https://www.qualtrics.com/support/integrations/api-integration/overview/)
 
-2. Create `credentials.yaml.DEFAULT` in the `credentialDir` and add API token information
-```{bash}
+2.  Create `credentials.yaml.DEFAULT` in the `credentialDir` and add API token information
+
+``` bash
 credentialDir='/Users/danicosme/' #replace with your path
 
 if [ ! -f ${credentialDir}credentials.yaml.DEFAULT ]; then
@@ -43,11 +22,15 @@ else
 fi
 ```
 
-## Define variables and paths
-* `cred_file_location` = path to your Qualtrics credential file. You'll need to generate this via Qualtrics using the instructios above.
-* `id_column_name` = subject ID column name in Qualtrics survey; can be a regular expression
+    ## credential file already exists in this location
 
-```{r}
+Define variables and paths
+--------------------------
+
+-   `cred_file_location` = path to your Qualtrics credential file. You'll need to generate this via Qualtrics using the instructios above.
+-   `id_column_name` = subject ID column name in Qualtrics survey; can be a regular expression
+
+``` r
 cred_file_location = '~/credentials.yaml.DEFAULT'
 sid_column_name = '(SID|ExternalDataReference|qid)'
 survey_name_filter = 'Freshman Project T.* Survey'
@@ -58,8 +41,10 @@ output_file_dir = '~/Documents/code/score-qualtrics/'
 rubric_dir = '~/Documents/code/score-qualtrics/rubrics'
 ```
 
-## Packages
-```{r}
+Packages
+--------
+
+``` r
 if (!require(tidyverse)) {
   install.packages('tidyverse')
 }
@@ -81,10 +66,12 @@ if (!require(ggcorrplot)) {
 }
 ```
 
-## Access qualtrics data
+Access qualtrics data
+---------------------
+
 Filter available surveys based on the filter specified above.
 
-```{r}
+``` r
 # load credential file
 credentials = scorequaltrics::creds_from_file(cred_file_location)
 
@@ -95,11 +82,21 @@ surveysFiltered = filter(surveysAvail, grepl(survey_name_filter, SurveyName))
 knitr::kable(arrange(select(surveysFiltered, SurveyName), SurveyName))
 ```
 
-## Cleaning and scoring data
+| SurveyName                         |
+|:-----------------------------------|
+| Freshman Project T1 Survey (Pilot) |
+| Freshman Project T2 Survey (Pilot) |
+| Freshman Project T3 Survey (Pilot) |
+| Freshman Project T4 Survey (Pilot) |
+
+Cleaning and scoring data
+-------------------------
+
 ### Get survey data
+
 The `get_survey_data` funcion pulls the data from the surveys specified in `surveysFiltered` and reshapes into the long format. Because the example data also includes some identifying information, we also want to filter those items out of our dataframe.
 
-```{r getsurveydata}
+``` r
 # get data
 surveys_long = scorequaltrics::get_survey_data(surveysFiltered,
                                                credentials, 
@@ -110,15 +107,80 @@ surveys_long = scorequaltrics::get_survey_data(surveysFiltered,
 head(select(surveys_long, -qid), 10)
 ```
 
+    ## # A tibble: 10 x 5
+    ##    ExternalDataRefere… item      value        survey_name            SID  
+    ##    <chr>               <chr>     <chr>        <chr>                  <chr>
+    ##  1 FP029               Response… Default Res… Freshman Project T2 S… <NA> 
+    ##  2 FP007               Response… Default Res… Freshman Project T2 S… <NA> 
+    ##  3 FP009               Response… Default Res… Freshman Project T2 S… <NA> 
+    ##  4 FP022               Response… Default Res… Freshman Project T2 S… <NA> 
+    ##  5 FP004               Response… Default Res… Freshman Project T2 S… <NA> 
+    ##  6 FP011               Response… Default Res… Freshman Project T2 S… <NA> 
+    ##  7 FP021               Response… Default Res… Freshman Project T2 S… <NA> 
+    ##  8 FP013               Response… Default Res… Freshman Project T2 S… <NA> 
+    ##  9 FP008               Response… Default Res… Freshman Project T2 S… <NA> 
+    ## 10 FP018               Response… Default Res… Freshman Project T2 S… <NA>
+
 ### Load scoring rubrics
+
 To automatically score the surveys, scoring rubrics with the following format must be provided:
-```{r examplerubric}
+
+``` r
 read.csv('examplerubric.csv', stringsAsFactors = FALSE, check.names = FALSE)
 ```
 
+    ##                Data File Name Scale Name Column Name Reverse Min Max
+    ## 1  Freshman Project T1 Survey        BIS       BIS_1       0   1   4
+    ## 2  Freshman Project T1 Survey        BIS       BIS_2       0   1   4
+    ## 3  Freshman Project T1 Survey        BIS       BIS_3       0   1   4
+    ## 4  Freshman Project T1 Survey        BIS       BIS_4       0   1   4
+    ## 5  Freshman Project T1 Survey        BIS       BIS_5       0   1   4
+    ## 6  Freshman Project T1 Survey        BIS       BIS_6       1   1   4
+    ## 7  Freshman Project T1 Survey        BIS       BIS_7       1   1   4
+    ## 8  Freshman Project T1 Survey        BIS       BIS_8       1   1   4
+    ## 9  Freshman Project T1 Survey        BIS       BIS_9       1   1   4
+    ## 10 Freshman Project T1 Survey        BIS      BIS_10       1   1   4
+    ## 11 Freshman Project T1 Survey        BIS      BIS_11       0   1   4
+    ## 12 Freshman Project T1 Survey        BIS      BIS_12       0   1   4
+    ## 13 Freshman Project T1 Survey        BIS      BIS_13       1   1   4
+    ## 14 Freshman Project T1 Survey        BIS      BIS_14       0   1   4
+    ## 15 Freshman Project T1 Survey        BIS      BIS_15       0   1   4
+    ##    Transform Nonplanning_Impulsivity_T1 Motor_Impulsivity_T1
+    ## 1          0                          0                  sum
+    ## 2          0                          0                  sum
+    ## 3          0                          0                  sum
+    ## 4          0                          0                  sum
+    ## 5          0                          0                  sum
+    ## 6          0                        sum                    0
+    ## 7          0                        sum                    0
+    ## 8          0                        sum                    0
+    ## 9          0                        sum                    0
+    ## 10         0                        sum                    0
+    ## 11         0                          0                    0
+    ## 12         0                          0                    0
+    ## 13         0                          0                    0
+    ## 14         0                          0                    0
+    ## 15         0                          0                    0
+    ##    Attentional_Impulsivity_T1 Total
+    ## 1                           0   sum
+    ## 2                           0   sum
+    ## 3                           0   sum
+    ## 4                           0   sum
+    ## 5                           0   sum
+    ## 6                           0   sum
+    ## 7                           0   sum
+    ## 8                           0   sum
+    ## 9                           0   sum
+    ## 10                          0   sum
+    ## 11                        sum   sum
+    ## 12                        sum   sum
+    ## 13                        sum   sum
+    ## 14                        sum   sum
+    ## 15                        sum   sum
 
 Scoring rubrics should exist in `rubric_dir` and be named according to the following convention: `[measure]_scoring_rubric.csv`
-```{r}
+
+``` r
 # specify rubric paths
 scoring_rubrics = data.frame(file = dir(file.path(rubric_dir), 
                                         pattern = '.*scoring_rubric.*.csv',
@@ -131,13 +193,30 @@ scoring_data_long = scorequaltrics::get_rubrics(scoring_rubrics,
 head(scoring_data_long[, -1], 10)
 ```
 
+    ## # A tibble: 10 x 9
+    ##    data_file_name scale_name column_name reverse min   max   transform
+    ##    <chr>          <chr>      <chr>       <chr>   <chr> <chr> <chr>    
+    ##  1 Freshman Proj… BIS        BIS_1       0       1     4     0        
+    ##  2 Freshman Proj… BIS        BIS_2       0       1     4     0        
+    ##  3 Freshman Proj… BIS        BIS_3       0       1     4     0        
+    ##  4 Freshman Proj… BIS        BIS_4       0       1     4     0        
+    ##  5 Freshman Proj… BIS        BIS_5       0       1     4     0        
+    ##  6 Freshman Proj… BIS        BIS_6       1       1     4     0        
+    ##  7 Freshman Proj… BIS        BIS_7       1       1     4     0        
+    ##  8 Freshman Proj… BIS        BIS_8       1       1     4     0        
+    ##  9 Freshman Proj… BIS        BIS_9       1       1     4     0        
+    ## 10 Freshman Proj… BIS        BIS_10      1       1     4     0        
+    ## # ... with 2 more variables: scored_scale <chr>, include <chr>
+
 ### Cleaning
-* exclude non-sub responses
-* convert missing values to NA
-* duplicates
+
+-   exclude non-sub responses
+-   convert missing values to NA
+-   duplicates
 
 First, exclude responses that are not subject responses. In this dataset, some subjects have their ID in the `ExternalDataReference` column only, so we'll need to add that to the `SID` column before filtering. There are also some test responses that match our SID pattern, so we'll want to exclude those using the `exclude_SID` pattern.
-```{r}
+
+``` r
 surveys_long_sub = surveys_long %>%
   mutate(SID = ifelse(is.na(SID), ExternalDataReference, SID)) %>%
   select(-ExternalDataReference) %>%
@@ -149,14 +228,22 @@ surveys_long_sub = surveys_long %>%
 unique(surveys_long_sub$SID)
 ```
 
+    ##  [1] "FP001" "FP002" "FP003" "FP004" "FP005" "FP006" "FP007" "FP008"
+    ##  [9] "FP009" "FP010" "FP011" "FP012" "FP013" "FP014" "FP015" "FP016"
+    ## [17] "FP017" "FP018" "FP019" "FP020" "FP021" "FP022" "FP023" "FP024"
+    ## [25] "FP025" "FP026" "FP027" "FP028" "FP029" "FP030" "FP031" "FP032"
+    ## [33] "FP034" "FP035"
+
 Convert missing values to NA.
-```{r}
+
+``` r
 surveys_long_na = surveys_long_sub %>%
   mutate(value = ifelse(value == "", NA, value))
 ```
 
 Check for non-numeric items using the `get_uncoercibles()` function.
-```{r}
+
+``` r
 surveys_long_na %>%
   scorequaltrics::get_uncoercibles() %>%
   distinct(item, value) %>%
@@ -164,8 +251,21 @@ surveys_long_na %>%
   head(., 10)
 ```
 
+    ##            item                                value
+    ## 1  CARE_EI_22OD                                 MDMA
+    ## 2         CVS_1                             18 years
+    ## 3        CVS_15                                3.47?
+    ## 4        CVS_16                         3. Something
+    ## 5        CVS_16                                 3.7?
+    ## 6         CVS_3 caucasian, american indian  (Seneca)
+    ## 7         CVS_3                             hispanic
+    ## 8         CVS_3                            caucasion
+    ## 9         CVS_3                            Caucasian
+    ## 10        CVS_3                                white
+
 Make manual edits before converting values to numeric during scoring
-```{r}
+
+``` r
 # save ethnicity information as a separate variable
 CVS_3 = surveys_long_na %>%
   mutate(value = ifelse(item == "CVS_3", tolower(value), value)) %>%
@@ -179,9 +279,9 @@ surveys_long_num = surveys_long_na %>%
                  ifelse(SID == "FP006" & item == "CVS_16", 3.7, value)))))
 ```
 
-
 Check for duplicate responses. There is a `clean_dupes` function that can do this, but since we have multiple waves with the same surveys, we're going to do this homebrew.
-```{r}
+
+``` r
 surveys_long_num %>%
   spread(item, value) %>%
   group_by(survey_name, SID) %>%
@@ -190,15 +290,23 @@ surveys_long_num %>%
   filter(n > 1)
 ```
 
+    ## # A tibble: 1 x 3
+    ## # Groups:   survey_name [1]
+    ##   survey_name                        SID       n
+    ##   <chr>                              <chr> <int>
+    ## 1 Freshman Project T2 Survey (Pilot) FP002     2
+
 Since FP002 appears to have taken the T2 survey twice, we're simply going to randomly select based on the qid
-```{r, ech = FALSE}
+
+``` r
 surveys_long_clean = surveys_long_num %>%
   filter(!qid == "R_11YpEE2pH9Ozqvk") %>%
   select(-qid)
 ```
 
 First, get only the items used in the scoring rubrics.
-```{r rubrics}
+
+``` r
 get_items_in_rubric_nonnumeric <- function(dataDF, rubricDF){
   dataDT <- as.data.table(dataDF)
   rubricCols <- rubricDF$column_name[rubricDF$include %in% c(1, "1", "sum", "prod", "I")]
@@ -213,12 +321,13 @@ scoring = get_items_in_rubric_nonnumeric(surveys_long_clean, scoring_data_long)
 
 From John:
 
-> There are a few different options for scoring questionnaires. First, we can provide a rubric and data to `scorequaltrics::score_questionnaire(dataDF, rubricsDF, psych = TRUE)`, which will use the `psych` package to do the scoring. This has the advantage that you get back a lot of information about the measurement quality of the scale, but it only works for scales that follow certain psychometric principles (e.g., each item is rated on a continuous scale, and is an indicator of a latent construct). It won't work well for other kinds of data (like scales where you want to know the number of risky behaviors, for example).
-> The second option is to use `scorequaltrics::score_step_one_and_two(dataDF, rubricsDF)` which was created to take care of several special cases for the TDS project questionnaires. The RPI, and RSQ both require special handling because of their idiosyncratic questionnaire design. 
+> There are a few different options for scoring questionnaires. First, we can provide a rubric and data to `scorequaltrics::score_questionnaire(dataDF, rubricsDF, psych = TRUE)`, which will use the `psych` package to do the scoring. This has the advantage that you get back a lot of information about the measurement quality of the scale, but it only works for scales that follow certain psychometric principles (e.g., each item is rated on a continuous scale, and is an indicator of a latent construct). It won't work well for other kinds of data (like scales where you want to know the number of risky behaviors, for example). The second option is to use `scorequaltrics::score_step_one_and_two(dataDF, rubricsDF)` which was created to take care of several special cases for the TDS project questionnaires. The RPI, and RSQ both require special handling because of their idiosyncratic questionnaire design.
 
 ### Modify `score_questionnaire_dsn`
-Change the function to also group by `survey_name` to be able to score multiple time points at once. This is not necessary if you only have one timepoint or survey you're scoring. 
-```{r homebrew}
+
+Change the function to also group by `survey_name` to be able to score multiple time points at once. This is not necessary if you only have one timepoint or survey you're scoring.
+
+``` r
 #' Score items
 #'
 #' @param item_values item_values
@@ -303,7 +412,7 @@ reverse_score<-function(
 #' @param max max
 transform_scores<-function(item_values,transformation,min=NA,max=NA){
   #`transformation` should be a function defined in terms of x that will
-  #	be applied to the vector of item_values.
+  # be applied to the vector of item_values.
   #Conditional logic will be extracted for subsetting, also in terms of x.
   #`min` and `max` will be passed to `reverse_score` and `pomp_score`.
   #check that all elements in `transformation` are the same
@@ -438,25 +547,30 @@ score_questionnaire_homebrew<-function(dataDF, rubricsDF, SID, psych = FALSE, ..
 }
 ```
 
-
 ### Score the questionnaires
+
 Use the modified function to score the questionnaires
-```{r score}
+
+``` r
 scored = score_questionnaire_homebrew(scoring, scoring_data_long, "SID")
 ```
 
 ### Convert score to numerical
-```{r numeric}
+
+``` r
 scored_num = scored %>%
   mutate(score = ifelse(score == "NaN", NA, score),
          score = as.numeric(score))
 ```
 
-## Plots
+Plots
+-----
+
 ### Distributions
 
 Grouped by scale
-```{r plotdist}
+
+``` r
 scored_num %>%
   group_by(scale_name) %>%
     do({
@@ -479,8 +593,15 @@ scored_num %>%
     })
 ```
 
+![](scorequaltrics_workflow_template_files/figure-markdown_github/plotdist-1.png)![](scorequaltrics_workflow_template_files/figure-markdown_github/plotdist-2.png)![](scorequaltrics_workflow_template_files/figure-markdown_github/plotdist-3.png)![](scorequaltrics_workflow_template_files/figure-markdown_github/plotdist-4.png)
+
+    ## # A tibble: 0 x 1
+    ## # Groups:   scale_name [0]
+    ## # ... with 1 variable: scale_name <chr>
+
 Grouped by scored scale
-```{r plotdist2}
+
+``` r
 scored_num %>%
   filter(!scored_scale == "ethnicity_text") %>%
   group_by(scale_name, scored_scale) %>%
@@ -503,8 +624,15 @@ scored_num %>%
     })
 ```
 
+![](scorequaltrics_workflow_template_files/figure-markdown_github/plotdist2-1.png)![](scorequaltrics_workflow_template_files/figure-markdown_github/plotdist2-2.png)![](scorequaltrics_workflow_template_files/figure-markdown_github/plotdist2-3.png)![](scorequaltrics_workflow_template_files/figure-markdown_github/plotdist2-4.png)![](scorequaltrics_workflow_template_files/figure-markdown_github/plotdist2-5.png)![](scorequaltrics_workflow_template_files/figure-markdown_github/plotdist2-6.png)![](scorequaltrics_workflow_template_files/figure-markdown_github/plotdist2-7.png)![](scorequaltrics_workflow_template_files/figure-markdown_github/plotdist2-8.png)![](scorequaltrics_workflow_template_files/figure-markdown_github/plotdist2-9.png)
+
+    ## # A tibble: 0 x 2
+    ## # Groups:   scale_name, scored_scale [0]
+    ## # ... with 2 variables: scale_name <chr>, scored_scale <chr>
+
 ### Proportion of missing data
-```{r plotmissing}
+
+``` r
 scored_num %>%
   group_by(scale_name) %>%
     do({
@@ -527,9 +655,17 @@ scored_num %>%
     })
 ```
 
+![](scorequaltrics_workflow_template_files/figure-markdown_github/plotmissing-1.png)![](scorequaltrics_workflow_template_files/figure-markdown_github/plotmissing-2.png)![](scorequaltrics_workflow_template_files/figure-markdown_github/plotmissing-3.png)![](scorequaltrics_workflow_template_files/figure-markdown_github/plotmissing-4.png)
+
+    ## # A tibble: 0 x 1
+    ## # Groups:   scale_name [0]
+    ## # ... with 1 variable: scale_name <chr>
+
 ### Changes across time
+
 For those variables that were measured more than once, plot changes.
-```{r plotchange}
+
+``` r
 scored_num %>%
   extract(survey_name, "wave", ".*([0-9]{1}).*", remove = FALSE) %>%
   group_by(scale_name, scored_scale) %>%
@@ -556,8 +692,15 @@ scored_num %>%
     })
 ```
 
+![](scorequaltrics_workflow_template_files/figure-markdown_github/plotchange-1.png)
+
+    ## # A tibble: 0 x 2
+    ## # Groups:   scale_name, scored_scale [0]
+    ## # ... with 2 variables: scale_name <chr>, scored_scale <chr>
+
 ### Correlations
-```{r plotcorr, fig.height=10, fig.width=10}
+
+``` r
 scored_num %>%
   filter(!scale_name == "CVS") %>%
   extract(survey_name, "wave", ".*(T[0-9]{1}).*", remove = FALSE) %>%
@@ -581,3 +724,5 @@ scored_num %>%
           panel.border = element_blank(),
           panel.background = element_blank())
 ```
+
+![](scorequaltrics_workflow_template_files/figure-markdown_github/plotcorr-1.png)
