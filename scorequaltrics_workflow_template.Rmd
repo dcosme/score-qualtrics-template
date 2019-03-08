@@ -4,7 +4,7 @@ author: "Dani Cosme"
 date: "`r Sys.Date()`"
 output:
   html_document:
-    code_folding: hide
+    code_folding: show
     df_print: paged
     highlight: tango
     theme: united
@@ -57,7 +57,6 @@ rubric_dir = '~/Documents/code/score-qualtrics/rubrics'
 ```
 
 ## Packages
-
 ```{r}
 if (!require(tidyverse)) {
   install.packages('tidyverse')
@@ -115,6 +114,7 @@ To automatically score the surveys, scoring rubrics with the following format mu
 read.csv('examplerubric.csv', stringsAsFactors = FALSE, check.names = FALSE)
 ```
 
+
 Scoring rubrics should exist in `rubric_dir` and be named according to the following convention: `[measure]_scoring_rubric.csv`
 ```{r}
 # specify rubric paths
@@ -125,9 +125,6 @@ scoring_rubrics = data.frame(file = dir(file.path(rubric_dir),
 # read in rubrics
 scoring_data_long = scorequaltrics::get_rubrics(scoring_rubrics,
                                                 type = 'scoring')
-```
-
-```{r}
 # print the first 10 rows
 head(scoring_data_long[, -1], 10)
 ```
@@ -192,7 +189,7 @@ surveys_long_num %>%
 ```
 
 Since FP002 appears to have taken the T2 survey twice, we're simply going to randomly select based on the qid
-```{r}
+```{r, ech = FALSE}
 surveys_long_clean = surveys_long_num %>%
   filter(!qid == "R_11YpEE2pH9Ozqvk") %>%
   select(-qid)
@@ -212,9 +209,10 @@ scoring = get_items_in_rubric_nonnumeric(surveys_long_clean, scoring_data_long)
 
 ### Scoring almost all at once
 
-There are a few different options for scoring questionnaires. First, we can provide a rubric and data to `scorequaltrics::score_questionnaire(dataDF, rubricsDF, psych = TRUE)`, which will use the `psych` package to do the scoring. This has the advantage that you get back a lot of information about the measurement quality of the scale, but it only works for scales that follow certain psychometric principles (e.g., each item is rated on a continuous scale, and is an indicator of a latent construct). It won't work well for other kinds of data (like scales where you want to know the number of risky behaviors, for example).
+From John:
 
-The second option is to use `scorequaltrics::score_step_one_and_two(dataDF, rubricsDF)` which was created to take care of several special cases for the TDS project questionnaires. The RPI, and RSQ both require special handling because of their idiosyncratic questionnaire design. 
+> There are a few different options for scoring questionnaires. First, we can provide a rubric and data to `scorequaltrics::score_questionnaire(dataDF, rubricsDF, psych = TRUE)`, which will use the `psych` package to do the scoring. This has the advantage that you get back a lot of information about the measurement quality of the scale, but it only works for scales that follow certain psychometric principles (e.g., each item is rated on a continuous scale, and is an indicator of a latent construct). It won't work well for other kinds of data (like scales where you want to know the number of risky behaviors, for example).
+> The second option is to use `scorequaltrics::score_step_one_and_two(dataDF, rubricsDF)` which was created to take care of several special cases for the TDS project questionnaires. The RPI, and RSQ both require special handling because of their idiosyncratic questionnaire design. 
 
 ### Modify `score_questionnaire_dsn`
 Change the function to also group by `survey_name` to be able to score multiple time points at once. This is not necessary if you only have one timepoint or survey you're scoring. 
