@@ -35,7 +35,7 @@ if [ ! -f ${credentialDir}credentials.yaml.DEFAULT ]; then
   cd ${credentialDir}
   touch credentials.yaml.DEFAULT
   echo "user: dcosme#oregon" >> credentials.yaml.DEFAULT #replace with your token information
-  echo "token: Ik0XNNQVZFdriLEnot..." >> credentials.yaml.DEFAULT #replace with your token information
+  echo "token: IhaSx923jsjDjaSKDjh..." >> credentials.yaml.DEFAULT #replace with your token information
 else
   echo "credential file already exists in this location"
 fi
