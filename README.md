@@ -1,4 +1,4 @@
-# score-qualtrics
+# score-qualtrics-template
 This is a template workflow for the `scorequaltrics` R package developed by [John Flournoy](https://github.com/jflournoy/qualtrics) to score Qualtrics surveys.
 
 
