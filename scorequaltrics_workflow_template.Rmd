@@ -173,10 +173,10 @@ CVS_3 = surveys_long_na %>%
 
 # make manual edits and convert values to numeric
 surveys_long_num = surveys_long_na %>%
-  mutate(value = ifelse(SID == "FP007" & item == "CVS_1", 18,
-                 ifelse(SID == "FP006" & item == "CVS_15", 3.47,
-                 ifelse(SID == "FP002" & item == "CVS_16", 3,
-                 ifelse(SID == "FP006" & item == "CVS_16", 3.7, value)))))
+  mutate(value = ifelse(SID == "FP007" & item == "CVS_1", "18",
+                 ifelse(SID == "FP006" & item == "CVS_15", "3.47",
+                 ifelse(SID == "FP002" & item == "CVS_16", "3",
+                 ifelse(SID == "FP006" & item == "CVS_16", "3.7", value)))))
 ```
 
 
@@ -443,6 +443,9 @@ score_questionnaire_homebrew<-function(dataDF, rubricsDF, SID, psych = FALSE, ..
 Use the modified function to score the questionnaires
 ```{r score}
 scored = score_questionnaire_homebrew(scoring, scoring_data_long, "SID")
+
+# print first 200 rows
+head(scored, 200)
 ```
 
 ### Convert score to numerical
@@ -450,6 +453,9 @@ scored = score_questionnaire_homebrew(scoring, scoring_data_long, "SID")
 scored_num = scored %>%
   mutate(score = ifelse(score == "NaN", NA, score),
          score = as.numeric(score))
+
+# print first 200 rows
+head(scored_num, 200)
 ```
 
 ## Plots

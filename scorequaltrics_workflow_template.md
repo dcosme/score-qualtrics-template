@@ -107,19 +107,22 @@ surveys_long = scorequaltrics::get_survey_data(surveysFiltered,
 head(select(surveys_long, -qid), 10)
 ```
 
+    ## Source: local data frame [10 x 5]
+    ## Groups: <by row>
+    ## 
     ## # A tibble: 10 x 5
-    ##    ExternalDataRefere… item      value        survey_name            SID  
-    ##    <chr>               <chr>     <chr>        <chr>                  <chr>
-    ##  1 FP029               Response… Default Res… Freshman Project T2 S… <NA> 
-    ##  2 FP007               Response… Default Res… Freshman Project T2 S… <NA> 
-    ##  3 FP009               Response… Default Res… Freshman Project T2 S… <NA> 
-    ##  4 FP022               Response… Default Res… Freshman Project T2 S… <NA> 
-    ##  5 FP004               Response… Default Res… Freshman Project T2 S… <NA> 
-    ##  6 FP011               Response… Default Res… Freshman Project T2 S… <NA> 
-    ##  7 FP021               Response… Default Res… Freshman Project T2 S… <NA> 
-    ##  8 FP013               Response… Default Res… Freshman Project T2 S… <NA> 
-    ##  9 FP008               Response… Default Res… Freshman Project T2 S… <NA> 
-    ## 10 FP018               Response… Default Res… Freshman Project T2 S… <NA>
+    ##    ExternalDataRefere… item      value        survey_name             SID  
+    ##    <chr>               <chr>     <chr>        <chr>                   <chr>
+    ##  1 FP029               Response… Default Res… Freshman Project T2 Su… <NA> 
+    ##  2 FP007               Response… Default Res… Freshman Project T2 Su… <NA> 
+    ##  3 FP009               Response… Default Res… Freshman Project T2 Su… <NA> 
+    ##  4 FP022               Response… Default Res… Freshman Project T2 Su… <NA> 
+    ##  5 FP004               Response… Default Res… Freshman Project T2 Su… <NA> 
+    ##  6 FP011               Response… Default Res… Freshman Project T2 Su… <NA> 
+    ##  7 FP021               Response… Default Res… Freshman Project T2 Su… <NA> 
+    ##  8 FP013               Response… Default Res… Freshman Project T2 Su… <NA> 
+    ##  9 FP008               Response… Default Res… Freshman Project T2 Su… <NA> 
+    ## 10 FP018               Response… Default Res… Freshman Project T2 Su… <NA>
 
 ### Load scoring rubrics
 
@@ -206,7 +209,7 @@ head(scoring_data_long[, -1], 10)
     ##  8 Freshman Proj… BIS        BIS_8       1       1     4     0        
     ##  9 Freshman Proj… BIS        BIS_9       1       1     4     0        
     ## 10 Freshman Proj… BIS        BIS_10      1       1     4     0        
-    ## # ... with 2 more variables: scored_scale <chr>, include <chr>
+    ## # … with 2 more variables: scored_scale <chr>, include <chr>
 
 ### Cleaning
 
@@ -273,10 +276,10 @@ CVS_3 = surveys_long_na %>%
 
 # make manual edits and convert values to numeric
 surveys_long_num = surveys_long_na %>%
-  mutate(value = ifelse(SID == "FP007" & item == "CVS_1", 18,
-                 ifelse(SID == "FP006" & item == "CVS_15", 3.47,
-                 ifelse(SID == "FP002" & item == "CVS_16", 3,
-                 ifelse(SID == "FP006" & item == "CVS_16", 3.7, value)))))
+  mutate(value = ifelse(SID == "FP007" & item == "CVS_1", "18",
+                 ifelse(SID == "FP006" & item == "CVS_15", "3.47",
+                 ifelse(SID == "FP002" & item == "CVS_16", "3",
+                 ifelse(SID == "FP006" & item == "CVS_16", "3.7", value)))))
 ```
 
 Check for duplicate responses. There is a `clean_dupes` function that can do this, but since we have multiple waves with the same surveys, we're going to do this homebrew.
@@ -553,7 +556,26 @@ Use the modified function to score the questionnaires
 
 ``` r
 scored = score_questionnaire_homebrew(scoring, scoring_data_long, "SID")
+
+# print first 200 rows
+head(scored, 200)
 ```
+
+    ## # A tibble: 200 x 8
+    ## # Groups:   survey_name, scale_name, scored_scale [6]
+    ##    survey_name scale_name scored_scale SID   score n_items n_missing method
+    ##    <chr>       <chr>      <chr>        <chr> <chr>   <int>     <int> <chr> 
+    ##  1 Freshman P… CVS        ethnicity_t… FP001 cauc…       1         0 I     
+    ##  2 Freshman P… CVS        ethnicity_t… FP002 hisp…       1         0 I     
+    ##  3 Freshman P… CVS        ethnicity_t… FP003 cauc…       1         0 I     
+    ##  4 Freshman P… CVS        ethnicity_t… FP004 Cauc…       1         0 I     
+    ##  5 Freshman P… CVS        ethnicity_t… FP005 white       1         0 I     
+    ##  6 Freshman P… CVS        ethnicity_t… FP006 White       1         0 I     
+    ##  7 Freshman P… CVS        ethnicity_t… FP007 Cauc…       1         0 I     
+    ##  8 Freshman P… CVS        ethnicity_t… FP008 White       1         0 I     
+    ##  9 Freshman P… CVS        ethnicity_t… FP009 white       1         0 I     
+    ## 10 Freshman P… CVS        ethnicity_t… FP010 White       1         0 I     
+    ## # … with 190 more rows
 
 ### Convert score to numerical
 
@@ -561,7 +583,26 @@ scored = score_questionnaire_homebrew(scoring, scoring_data_long, "SID")
 scored_num = scored %>%
   mutate(score = ifelse(score == "NaN", NA, score),
          score = as.numeric(score))
+
+# print first 200 rows
+head(scored_num, 200)
 ```
+
+    ## # A tibble: 200 x 8
+    ## # Groups:   survey_name, scale_name, scored_scale [6]
+    ##    survey_name scale_name scored_scale SID   score n_items n_missing method
+    ##    <chr>       <chr>      <chr>        <chr> <dbl>   <int>     <int> <chr> 
+    ##  1 Freshman P… CVS        ethnicity_t… FP001    NA       1         0 I     
+    ##  2 Freshman P… CVS        ethnicity_t… FP002    NA       1         0 I     
+    ##  3 Freshman P… CVS        ethnicity_t… FP003    NA       1         0 I     
+    ##  4 Freshman P… CVS        ethnicity_t… FP004    NA       1         0 I     
+    ##  5 Freshman P… CVS        ethnicity_t… FP005    NA       1         0 I     
+    ##  6 Freshman P… CVS        ethnicity_t… FP006    NA       1         0 I     
+    ##  7 Freshman P… CVS        ethnicity_t… FP007    NA       1         0 I     
+    ##  8 Freshman P… CVS        ethnicity_t… FP008    NA       1         0 I     
+    ##  9 Freshman P… CVS        ethnicity_t… FP009    NA       1         0 I     
+    ## 10 Freshman P… CVS        ethnicity_t… FP010    NA       1         0 I     
+    ## # … with 190 more rows
 
 Plots
 -----
@@ -597,7 +638,7 @@ scored_num %>%
 
     ## # A tibble: 0 x 1
     ## # Groups:   scale_name [0]
-    ## # ... with 1 variable: scale_name <chr>
+    ## # … with 1 variable: scale_name <chr>
 
 Grouped by scored scale
 
@@ -628,7 +669,7 @@ scored_num %>%
 
     ## # A tibble: 0 x 2
     ## # Groups:   scale_name, scored_scale [0]
-    ## # ... with 2 variables: scale_name <chr>, scored_scale <chr>
+    ## # … with 2 variables: scale_name <chr>, scored_scale <chr>
 
 ### Proportion of missing data
 
@@ -659,7 +700,7 @@ scored_num %>%
 
     ## # A tibble: 0 x 1
     ## # Groups:   scale_name [0]
-    ## # ... with 1 variable: scale_name <chr>
+    ## # … with 1 variable: scale_name <chr>
 
 ### Changes across time
 
@@ -696,7 +737,7 @@ scored_num %>%
 
     ## # A tibble: 0 x 2
     ## # Groups:   scale_name, scored_scale [0]
-    ## # ... with 2 variables: scale_name <chr>, scored_scale <chr>
+    ## # … with 2 variables: scale_name <chr>, scored_scale <chr>
 
 ### Correlations
 
