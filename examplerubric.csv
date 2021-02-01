@@ -1,16 +1,16 @@
-Data File Name,Scale Name,Column Name,Reverse,Min,Max,Transform,Nonplanning_Impulsivity_T1,Motor_Impulsivity_T1,Attentional_Impulsivity_T1,Total
-Freshman Project T1 Survey,BIS,BIS_1,0,1,4,0,0,sum,0,sum
-Freshman Project T1 Survey,BIS,BIS_2,0,1,4,0,0,sum,0,sum
-Freshman Project T1 Survey,BIS,BIS_3,0,1,4,0,0,sum,0,sum
-Freshman Project T1 Survey,BIS,BIS_4,0,1,4,0,0,sum,0,sum
-Freshman Project T1 Survey,BIS,BIS_5,0,1,4,0,0,sum,0,sum
-Freshman Project T1 Survey,BIS,BIS_6,1,1,4,0,sum,0,0,sum
-Freshman Project T1 Survey,BIS,BIS_7,1,1,4,0,sum,0,0,sum
-Freshman Project T1 Survey,BIS,BIS_8,1,1,4,0,sum,0,0,sum
-Freshman Project T1 Survey,BIS,BIS_9,1,1,4,0,sum,0,0,sum
-Freshman Project T1 Survey,BIS,BIS_10,1,1,4,0,sum,0,0,sum
-Freshman Project T1 Survey,BIS,BIS_11,0,1,4,0,0,0,sum,sum
-Freshman Project T1 Survey,BIS,BIS_12,0,1,4,0,0,0,sum,sum
-Freshman Project T1 Survey,BIS,BIS_13,1,1,4,0,0,0,sum,sum
-Freshman Project T1 Survey,BIS,BIS_14,0,1,4,0,0,0,sum,sum
-Freshman Project T1 Survey,BIS,BIS_15,0,1,4,0,0,0,sum,sum
+Scale Name,Column Name,Reverse,Min,Max,Transform,Nonplanning_Impulsivity_T1,Motor_Impulsivity_T1,Attentional_Impulsivity_T1,Total
+BIS,BIS_1,0,1,4,0,0,sum,0,sum
+BIS,BIS_2,0,1,4,0,0,sum,0,sum
+BIS,BIS_3,0,1,4,0,0,sum,0,sum
+BIS,BIS_4,0,1,4,0,0,sum,0,sum
+BIS,BIS_5,0,1,4,0,0,sum,0,sum
+BIS,BIS_6,1,1,4,0,sum,0,0,sum
+BIS,BIS_7,1,1,4,0,sum,0,0,sum
+BIS,BIS_8,1,1,4,0,sum,0,0,sum
+BIS,BIS_9,1,1,4,0,sum,0,0,sum
+BIS,BIS_10,1,1,4,0,sum,0,0,sum
+BIS,BIS_11,0,1,4,0,0,0,sum,sum
+BIS,BIS_12,0,1,4,0,0,0,sum,sum
+BIS,BIS_13,1,1,4,0,0,0,sum,sum
+BIS,BIS_14,0,1,4,0,0,0,sum,sum
+BIS,BIS_15,0,1,4,0,0,0,sum,sum

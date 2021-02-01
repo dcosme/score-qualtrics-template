@@ -3,10 +3,6 @@ title: "Scoring Qualtrics data with scorequaltrics"
 author: "Dani Cosme"
 date: "`r Sys.Date()`"
 output:
-  md_document:
-    variant: markdown_github
-  pdf_document:
-    toc: yes
   html_document:
     code_folding: show
     df_print: paged
@@ -16,6 +12,10 @@ output:
     toc_float:
       collapsed: yes
       smooth_scroll: yes
+  pdf_document:
+    toc: yes
+  md_document:
+    variant: markdown_github
 ---
 
 ```{r setup, include=FALSE}
@@ -80,10 +80,10 @@ if (!require(ggcorrplot)) {
 
 ```{r}
 cred_file_location = '~/qualtrics_credentials.yaml'
-keep_columns = '(ResponseId|SID|ExternalReference|Finished)'
-survey_name_filter = 'Freshman Project T.* Survey'
-sid_pattern = 'FP[0-9]{3}'
-exclude_sid = 'FP999' # subject IDs to exclude
+keep_columns = '(Login|ResponseId|Finished)'
+survey_name_filter = 'DEV .* Surveys'
+sid_pattern = 'DEV[0-9]{3}$'
+exclude_sid = '^99|DEV999|DEV000|DEV998|DEV737' # subject IDs to exclude
 identifiable_data = c('IPAddress', "RecipientEmail", "RecipientLastName", "RecipientFirstName",
                       "LocationLatitude", "LocationLongitude") # exclude when printing duplicates
 output_file_dir = '~/Documents/code/score-qualtrics'
@@ -108,11 +108,12 @@ knitr::kable(arrange(select(surveysFiltered, SurveyName), SurveyName))
 ### Get survey data
 The `get_survey_data` function pulls the data from the surveys specified in `surveysFiltered` and reshapes into the long format. Because the example data also includes some identifying information, we also want to filter those items out of our dataframe.
 
-```{r getsurveydata}
+```{r getsurveydata, results="hide"}
 # get data
 surveys_long = scorequaltrics::get_survey_data(surveysFiltered,
                                                pid_col = keep_columns) %>%
-               filter(!item %in% identifiable_data) #filter out identifiable data
+               filter(!item %in% identifiable_data) %>% #filter out identifiable data
+  rename("SID" = Login) #rename participant ID column
 
 # print first 10 rows
 head(select(surveys_long, -ResponseId), 10)
@@ -120,6 +121,34 @@ head(select(surveys_long, -ResponseId), 10)
 
 ### Load scoring rubrics
 To automatically score the surveys, scoring rubrics with the following format must be provided:
+
+Required columns
+
+* `scale name` = name of the scale
+* `column name` = item name used in Qualtrics
+* `reverse` = reverse scoring flag (1 = yes, 0 = no)
+* `min` = minimum value for numeric items
+* `max` = maximum value for numeric items
+* `transform` = transformation function; use 0 for all items as we're not transforming the data during scoring
+
+User-generated column names
+
+* mean
+  * use this column name for the average of scores across all items in the questionnaire
+* sum
+  * use this column name for the sum of scores across all items in the questionnaire
+* sub-facet names
+  * if a questionnaire has sub-facets, create a separate column for each sub-facet
+  * name each sub-facet based on the sub-facet name in the survey using spaces between words
+  * if the sub-facet name is very long, pick two or three words that adequately describe the facet
+
+Item values in user-created columns
+
+* mean = use this item in the column mean calculation
+* sum = use this item in the column sum calculation
+* 1 = single numeric values
+* I = non-numerical values (i.e., text)
+* blank = ignore this item in the column calculation
 
 ```{r examplerubric}
 read.csv('examplerubric.csv', stringsAsFactors = FALSE, check.names = FALSE)
@@ -146,30 +175,56 @@ head(scoring_data_long[, -1], 10)
 * convert missing values to NA
 * duplicates
 
-First, exclude responses that are not subject responses.
+First, check participant IDs that don't match the participant ID regular expression pattern.
+```{r}
+surveys_long %>%
+  select(SID) %>%
+  unique() %>%
+  filter(!grepl(sid_pattern, SID))
+```
 
-In this dataset, some subjects have their ID in the `ExternalReference` column only, so we'll need to add that to the `SID` column before filtering. There are also some test responses that match our SID pattern, so we'll want to exclude those using the `exclude_SID` pattern.
+Tidy incorrectly formatted participant IDs and exclude responses that are not subject responses.
 
 ```{r}
-surveys_long_sub = surveys_long %>%
-  mutate(SID = ifelse(is.na(SID), ExternalReference, SID)) %>%
-  select(-ExternalReference) %>%
+# print incorrectly formatted IDs
+surveys_long %>%
+  select(SID) %>%
+  unique() %>%
+  filter(!grepl(sid_pattern, SID)) %>%
+  mutate(SID_new = gsub("Dev", "DEV", SID),
+         SID_new = gsub("dev", "DEV", SID_new),
+         SID_new = gsub("DEVI", "DEV", SID_new),
+         SID_new = gsub("DEVl", "DEV", SID_new),
+         SID_new = gsub("DEVo", "DEV", SID_new),
+         SID_new = ifelse(grepl("^[0-9]{3}$", SID_new), paste0("DEV", SID_new), SID_new),
+         SID_new = ifelse(grepl("DEV[0-9]{4}", SID_new), gsub("DEV0", "DEV", SID_new), SID_new),
+         SID_new = ifelse(SID == "DEVO55", "DEV055", SID_new)) %>%
+  arrange(SID_new)
+
+# updated IDs in the survey data
+surveys_sub = surveys_long %>%
+  mutate(SID = gsub("Dev", "DEV", SID),
+         SID = gsub("dev", "DEV", SID),
+         SID = gsub("DEVI", "DEV", SID),
+         SID = gsub("DEVl", "DEV", SID),
+         SID = gsub("DEVo", "DEV", SID),
+         SID = ifelse(grepl("^[0-9]{3}$", SID), paste0("DEV", SID), SID),
+         SID = ifelse(grepl("DEV[0-9]{4}", SID), gsub("DEV0", "DEV", SID), SID),
+         SID = ifelse(SID == "DEVO55", "DEV055", SID)) %>%
   filter(grepl(sid_pattern, SID)) %>%
-  filter(!grepl(exclude_sid, SID)) %>%
-  arrange(SID)
+  filter(!grepl(exclude_sid, SID))
 
 # print unique SIDs
-unique(surveys_long_sub$SID)
+unique(sort(surveys_sub$SID))
 ```
 
 Convert missing values to NA.
 ```{r}
-surveys_long_na = surveys_long_sub %>%
+surveys_long_na = surveys_sub %>%
   mutate(value = ifelse(value == "", NA, value))
 ```
 
 Check for non-numeric items using the `get_uncoercibles()` function.
-
 ```{r}
 surveys_long_na %>%
   scorequaltrics::get_uncoercibles() %>%
@@ -178,16 +233,18 @@ surveys_long_na %>%
   head(., 10)
 ```
 
-Make manual edits before converting values to numeric during scoring
+Make manual edits before converting values to numeric during scoring.
 
-```{r}
+Here's an example from anohter survey, but we'll skip this for the DEV example since there's nothing to modify.
+
+```{r, eval=FALSE}
 # save ethnicity information as a separate variable
 CVS_3 = surveys_long_na %>%
   mutate(value = ifelse(item == "CVS_3", tolower(value), value)) %>%
   filter(item == "CVS_3")
 
 # make manual edits and convert values to numeric
-surveys_long_num = surveys_long_na %>%
+surveys_long_man = surveys_long_na %>%
   mutate(value = ifelse(SID == "FP007" & item == "CVS_1", "18",
                  ifelse(SID == "FP006" & item == "CVS_15", "3.47",
                  ifelse(SID == "FP002" & item == "CVS_16", "3",
@@ -198,31 +255,64 @@ surveys_long_num = surveys_long_na %>%
 Check for duplicate responses. There is a `clean_dupes` function that can do this, but since we have multiple waves with the same surveys, we're going to do this homebrew.
 
 ```{r}
-surveys_long_num %>%
+(duplicates = surveys_long_na %>%
   spread(item, value) %>%
   group_by(survey_name, SID) %>%
   summarize(n = n()) %>%
   arrange(desc(n)) %>%
-  filter(n > 1)
+  filter(n > 1) %>%
+  mutate(survey_SID = sprintf("%s_%s", survey_name, SID)))
 ```
 
-Since FP002 appears to have taken the T2 survey twice, we're simply going to randomly select based on the qid.
+For each participant, determine which survey to use and filter out the others using `ResponseId`.
 
-```{r, ech = FALSE}
-surveys_long_clean = surveys_long_num %>%
-  filter(!ResponseId == "R_11YpEE2pH9Ozqvk") %>%
+Select the survey responses with the least missing data, or select the last survey if `n_missing` is equal.
+
+NOTE: Should also verify that these are duplicate responses and not accidental responses to the wrong wave.
+
+```{r}
+# calculate the number of missing responses per survey
+(n_missing = surveys_long_na %>%
+  mutate(survey_SID = sprintf("%s_%s", survey_name, SID)) %>%
+  filter(survey_SID %in% duplicates$survey_SID) %>%
+  filter(is.na(value)) %>%
+  group_by(survey_SID, ResponseId) %>%
+  summarize(n_missing = n()))
+
+# filter out the responses selected to use in scoring
+exclude_response_ids = n_missing %>%
+  filter(!ResponseId %in% c("R_2OIHE4ktdYcm0a7", "R_BEf3vfYhagbnNUl", "R_2TBslmkLEmzJhQO",
+                            "R_1Cr7yJZzyXziAXg", "R_3EMSgAcGdBy5lE6", "R_9tv4Lh4mmYBQaY1",
+                            "R_vGDsF1Xq6wdXCGB", "R_3nAVlaBwD9kU9xP", "R_AyxxcgRp9hFm2Zj",
+                            "R_24EEWwArG7Nrk77", "R_zfqhMGfThNTHGx3", "R_t03olQ4jM7h4xhL",
+                            "R_3lGitKxAqTI9ri8", "R_pb093Br4yxEDbPP", "R_3rNTwD6P0nqzZVf",
+                            "R_3mkjdwllly6g0Gy", "R_9MJVzMgBmdjslyx", "R_336XpIG9yfTL6zS",
+                            "R_beGVZ2QKu7GcxZT", "R_2S7vv3fDokVJwYI", "R_3qrFrS76kW2BhML",
+                            "R_UFN8NOCErVF0fVD", "R_2ZUHiwY8M0s6Wbx", "R_5mQ02A8ywtBVv45",
+                            "R_3mjH74cQsiSOJ5A", "R_sZ2ohYJtIajBDXP", "R_1gNrV5xUzrtLY3D",
+                            "R_w0LUkf7sF5c4eop", "R_3LkiPMqFoXZaP54", "R_1ot2j6SlKbTRjkP",
+                            "R_1Kln0VRBOvZJ1cO", "R_1N9YqQ4ewGSeZg9", "R_3jZisXIgjxuaa4h",
+                            "R_31hJJws8nEQUDTG", "R_3Euk7CvKsVqGw8Q", "R_0xH8tsvKPDGW1DX",
+                            "R_23gcbMleuUGfl1X", "R_27DrVFkCdIZvwNn", "R_3PO9Uy5U0RQlZtI",
+                            "R_zZ7CeIl3eP6O6Vb", "R_3M68oO9gYPMrY0V", "R_PHxUCLXK4S0d5uN",
+                            "R_tSetLV0PGrfGS5j", "R_2dEHbphOgFbGwkr", "R_RDnjHxeAMqw40s9",
+                            "R_YRqc1ppx2JqoLGV", "R_3lK38brLaUxPrV5", "R_28SdLIJLFkBxPc7",
+                            "R_2OMT5G2RmSkxqzM"))
+
+# filter out duplicated responses
+surveys_long_clean = surveys_long_na %>%
+  filter(!ResponseId %in% exclude_response_ids$ResponseId) %>%
   select(-ResponseId)
 ```
 
-First, get only the items used in the scoring rubrics.
-
-```{r rubrics}
-scoring = scorequaltrics::get_rubrics(scoring_rubrics, type = 'scoring')
-```
 
 ### Score the questionnaires
 
-```{r score}
+```{r rubrics}
+# get only the items used in the scoring rubrics.
+scoring = scorequaltrics::get_rubrics(scoring_rubrics, type = 'scoring')
+
+# score
 scored = scorequaltrics::score_questionnaire(surveys_long_clean, scoring, SID = "SID", psych = FALSE)
 
 # print first 200 rows
@@ -231,7 +321,6 @@ head(scored, 200)
 
 ## Plots {.tabset}
 ### Distributions {.tabset}
-
 #### Grouped by scale
 ```{r plotdist}
 scored %>%
@@ -346,9 +435,8 @@ scored %>%
 scored %>%
   filter(!method == "I") %>% # filter out non-numeric data
   mutate(score = as.numeric(score)) %>%
-  filter(!scale_name == "CVS") %>%
-  extract(survey_name, "wave", ".*(T[0-9]{1}).*", remove = FALSE) %>%
-  mutate(var.name = paste(scale_name, scored_scale, wave, sep = " ")) %>%
+  extract(survey_name, "wave", ".*([0-9]{1}).*", remove = FALSE) %>%
+  mutate(var.name = sprintf("%s %s T%s", scale_name, scored_scale, wave)) %>%
   ungroup() %>%
   select(var.name, score, SID) %>%
   spread(var.name, score) %>%
