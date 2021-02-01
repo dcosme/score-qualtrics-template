@@ -12,11 +12,12 @@ To pull data from Qualtrics, you need a credentials file with an API token assoc
 ```{bash}
 credentialDir='/Users/danicosme/' #replace with your path
 
-if [ ! -f ${credentialDir}credentials.yaml.DEFAULT ]; then
+if [ ! -f ${credentialDir}qualtrics_credentials.yaml ]; then
   cd ${credentialDir}
-  touch credentials.yaml.DEFAULT
-  echo "user: dcosme#oregon" >> credentials.yaml.DEFAULT #replace with your token information
-  echo "token: IhaSx923jsjDjaSKDjh..." >> credentials.yaml.DEFAULT #replace with your token information
+  touch qualtrics_credentials.yaml
+  echo "token: Ik0XNN...." >> qualtrics_credentials.yaml #replace with your token information
+  echo "baseurl: oregon.qualtrics.com" >> qualtrics_credentials.yaml
+  echo "credential file created"
 else
   echo "credential file already exists in this location"
 fi
