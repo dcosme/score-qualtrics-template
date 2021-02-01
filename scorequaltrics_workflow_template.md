@@ -1,22 +1,30 @@
-This script is a template workflow for scoring Qualtrics data using the [`scorequaltrics`](https://github.com/jflournoy/qualtrics) package built by [John Flournoy](https://github.com/jflournoy) and is a pared down version of the tutorial he created for the TDS study.
+This script is a template workflow for scoring Qualtrics data using the
+[`scorequaltrics`](https://github.com/jflournoy/qualtrics) package built
+by [John Flournoy](https://github.com/jflournoy) and is a pared down
+version of the tutorial he created for the TDS study.
 
 Generate a credentials file
 ---------------------------
 
-To pull data from Qualtrics, you need a credentials file with an API token associated with your account. To create the file, follow these steps.
+To pull data from Qualtrics, you need a credentials file with an API
+token associated with your account. To create the file, follow these
+steps.
 
-1.  Generate an API token for Qualtrics. Follow the steps outlined [here](https://www.qualtrics.com/support/integrations/api-integration/overview/)
+1.  Generate an API token for Qualtrics. Follow the steps outlined
+    [here](https://www.qualtrics.com/support/integrations/api-integration/overview/)
 
-2.  Create `credentials.yaml.DEFAULT` in the `credentialDir` and add API token information
+2.  Create `qualtrics_credentials.yaml` in the `credentialDir` and add
+    API token information
 
 ``` bash
 credentialDir='/Users/danicosme/' #replace with your path
 
-if [ ! -f ${credentialDir}credentials.yaml.DEFAULT ]; then
+if [ ! -f ${credentialDir}qualtrics_credentials.yaml ]; then
   cd ${credentialDir}
-  touch credentials.yaml.DEFAULT
-  echo "user: dcosme#oregon" >> credentials.yaml.DEFAULT #replace with your token information
-  echo "token: IhaSx923jsjDjaSKDjh..." >> credentials.yaml.DEFAULT #replace with your token information
+  touch qualtrics_credentials.yaml
+  echo "token: Ik0XNN...." >> qualtrics_credentials.yaml #replace with your token information
+  echo "baseurl: oregon.qualtrics.com" >> qualtrics_credentials.yaml
+  echo "credential file created"
 else
   echo "credential file already exists in this location"
 fi
@@ -24,25 +32,8 @@ fi
 
     ## credential file already exists in this location
 
-Define variables and paths
---------------------------
-
--   `cred_file_location` = path to your Qualtrics credential file. You'll need to generate this via Qualtrics using the instructios above.
--   `id_column_name` = subject ID column name in Qualtrics survey; can be a regular expression
-
-``` r
-cred_file_location = '~/credentials.yaml.DEFAULT'
-sid_column_name = '(SID|ExternalDataReference|qid)'
-survey_name_filter = 'Freshman Project T.* Survey'
-sid_pattern = 'FP[0-9]{3}'
-exclude_sid = 'FP999' # subject IDs to exclude
-identifiableData = c('Name', 'EmailAddress', 'IPAddress') # exclude when printing duplicates
-output_file_dir = '~/Documents/code/score-qualtrics/'
-rubric_dir = '~/Documents/code/score-qualtrics/rubrics'
-```
-
-Packages
---------
+Load packages
+-------------
 
 ``` r
 if (!require(tidyverse)) {
@@ -64,6 +55,36 @@ if (!require(scorequaltrics)) {
 if (!require(ggcorrplot)) {
   install.packages('ggcorrplot')
 }
+```
+
+Define variables and paths
+--------------------------
+
+-   `cred_file_location` = path to your Qualtrics credential file.
+    You’ll need to generate this via Qualtrics using the instructions
+    above.
+-   `keep_columns` = subject ID column name and any other columns in
+    Qualtrics survey you want to keep in wide format (all others will be
+    gathered into a key-value pair); can be a regular expression
+-   `survey_name_filter` = regular expression to select surveys
+-   `sid_pattern` = regular expression for participant IDs
+-   `exclude_sid` = regular expression for participant IDs to exclude
+    (e.g. test responses)
+-   `identifiable_data` = identifiable data you do not want to include
+    in the dataframe
+-   `output_file_dir` = output file directory
+-   `rubric_dir` = scoring rubric directory
+
+``` r
+cred_file_location = '~/qualtrics_credentials.yaml'
+keep_columns = '(ResponseId|SID|ExternalReference|Finished)'
+survey_name_filter = 'Freshman Project T.* Survey'
+sid_pattern = 'FP[0-9]{3}'
+exclude_sid = 'FP999' # subject IDs to exclude
+identifiable_data = c('IPAddress', "RecipientEmail", "RecipientLastName", "RecipientFirstName",
+                      "LocationLatitude", "LocationLongitude") # exclude when printing duplicates
+output_file_dir = '~/Documents/code/score-qualtrics'
+rubric_dir = '~/Documents/code/score-qualtrics/rubrics'
 ```
 
 Access qualtrics data
@@ -94,94 +115,103 @@ Cleaning and scoring data
 
 ### Get survey data
 
-The `get_survey_data` funcion pulls the data from the surveys specified in `surveysFiltered` and reshapes into the long format. Because the example data also includes some identifying information, we also want to filter those items out of our dataframe.
+The `get_survey_data` function pulls the data from the surveys specified
+in `surveysFiltered` and reshapes into the long format. Because the
+example data also includes some identifying information, we also want to
+filter those items out of our dataframe.
 
 ``` r
 # get data
 surveys_long = scorequaltrics::get_survey_data(surveysFiltered,
-                                               credentials, 
-                                               pid_col = sid_column_name) %>%
-               filter(!item %in% identifiableData) #filter out identifiable data
-
-# print first 10 rows
-head(select(surveys_long, -qid), 10)
+                                               pid_col = keep_columns) %>%
+               filter(!item %in% identifiable_data) #filter out identifiable data
 ```
 
-    ## Source: local data frame [10 x 5]
-    ## Groups: <by row>
-    ## 
-    ## # A tibble: 10 x 5
-    ##    ExternalDataRefere… item      value        survey_name             SID  
-    ##    <chr>               <chr>     <chr>        <chr>                   <chr>
-    ##  1 FP029               Response… Default Res… Freshman Project T2 Su… <NA> 
-    ##  2 FP007               Response… Default Res… Freshman Project T2 Su… <NA> 
-    ##  3 FP009               Response… Default Res… Freshman Project T2 Su… <NA> 
-    ##  4 FP022               Response… Default Res… Freshman Project T2 Su… <NA> 
-    ##  5 FP004               Response… Default Res… Freshman Project T2 Su… <NA> 
-    ##  6 FP011               Response… Default Res… Freshman Project T2 Su… <NA> 
-    ##  7 FP021               Response… Default Res… Freshman Project T2 Su… <NA> 
-    ##  8 FP013               Response… Default Res… Freshman Project T2 Su… <NA> 
-    ##  9 FP008               Response… Default Res… Freshman Project T2 Su… <NA> 
-    ## 10 FP018               Response… Default Res… Freshman Project T2 Su… <NA>
+    ##   |                                                                              |                                                                      |   0%  |                                                                              |======================================================================| 100%
+    ##   |                                                                              |                                                                      |   0%  |                                                                              |======================================================================| 100%
+    ##   |                                                                              |                                                                      |   0%  |                                                                              |======================================================================| 100%
+    ##   |                                                                              |                                                                      |   0%  |                                                                              |======================================================================| 100%
+
+``` r
+# print first 10 rows
+head(select(surveys_long, -ResponseId), 10)
+```
+
+    ## # A tibble: 10 x 6
+    ## # Rowwise: 
+    ##    Finished ExternalReference item     value    survey_name                SID  
+    ##       <dbl> <chr>             <chr>    <chr>    <chr>                      <chr>
+    ##  1        1 <NA>              StartDa… 1447719… Freshman Project T2 Surve… <NA> 
+    ##  2        1 <NA>              StartDa… 1447725… Freshman Project T2 Surve… <NA> 
+    ##  3        1 <NA>              StartDa… 1447723… Freshman Project T2 Surve… <NA> 
+    ##  4        1 <NA>              StartDa… 1447741… Freshman Project T2 Surve… <NA> 
+    ##  5        1 <NA>              StartDa… 1447746… Freshman Project T2 Surve… <NA> 
+    ##  6        1 <NA>              StartDa… 1447818… Freshman Project T2 Surve… <NA> 
+    ##  7        1 <NA>              StartDa… 1447744… Freshman Project T2 Surve… <NA> 
+    ##  8        1 <NA>              StartDa… 1447822… Freshman Project T2 Surve… <NA> 
+    ##  9        1 <NA>              StartDa… 1447825… Freshman Project T2 Surve… <NA> 
+    ## 10        1 FP018             StartDa… 1447914… Freshman Project T2 Surve… <NA>
 
 ### Load scoring rubrics
 
-To automatically score the surveys, scoring rubrics with the following format must be provided:
+To automatically score the surveys, scoring rubrics with the following
+format must be provided:
 
 ``` r
 read.csv('examplerubric.csv', stringsAsFactors = FALSE, check.names = FALSE)
 ```
 
-    ##                Data File Name Scale Name Column Name Reverse Min Max
-    ## 1  Freshman Project T1 Survey        BIS       BIS_1       0   1   4
-    ## 2  Freshman Project T1 Survey        BIS       BIS_2       0   1   4
-    ## 3  Freshman Project T1 Survey        BIS       BIS_3       0   1   4
-    ## 4  Freshman Project T1 Survey        BIS       BIS_4       0   1   4
-    ## 5  Freshman Project T1 Survey        BIS       BIS_5       0   1   4
-    ## 6  Freshman Project T1 Survey        BIS       BIS_6       1   1   4
-    ## 7  Freshman Project T1 Survey        BIS       BIS_7       1   1   4
-    ## 8  Freshman Project T1 Survey        BIS       BIS_8       1   1   4
-    ## 9  Freshman Project T1 Survey        BIS       BIS_9       1   1   4
-    ## 10 Freshman Project T1 Survey        BIS      BIS_10       1   1   4
-    ## 11 Freshman Project T1 Survey        BIS      BIS_11       0   1   4
-    ## 12 Freshman Project T1 Survey        BIS      BIS_12       0   1   4
-    ## 13 Freshman Project T1 Survey        BIS      BIS_13       1   1   4
-    ## 14 Freshman Project T1 Survey        BIS      BIS_14       0   1   4
-    ## 15 Freshman Project T1 Survey        BIS      BIS_15       0   1   4
-    ##    Transform Nonplanning_Impulsivity_T1 Motor_Impulsivity_T1
-    ## 1          0                          0                  sum
-    ## 2          0                          0                  sum
-    ## 3          0                          0                  sum
-    ## 4          0                          0                  sum
-    ## 5          0                          0                  sum
-    ## 6          0                        sum                    0
-    ## 7          0                        sum                    0
-    ## 8          0                        sum                    0
-    ## 9          0                        sum                    0
-    ## 10         0                        sum                    0
-    ## 11         0                          0                    0
-    ## 12         0                          0                    0
-    ## 13         0                          0                    0
-    ## 14         0                          0                    0
-    ## 15         0                          0                    0
-    ##    Attentional_Impulsivity_T1 Total
-    ## 1                           0   sum
-    ## 2                           0   sum
-    ## 3                           0   sum
-    ## 4                           0   sum
-    ## 5                           0   sum
-    ## 6                           0   sum
-    ## 7                           0   sum
-    ## 8                           0   sum
-    ## 9                           0   sum
-    ## 10                          0   sum
-    ## 11                        sum   sum
-    ## 12                        sum   sum
-    ## 13                        sum   sum
-    ## 14                        sum   sum
-    ## 15                        sum   sum
+    ##                Data File Name Scale Name Column Name Reverse Min Max Transform
+    ## 1  Freshman Project T1 Survey        BIS       BIS_1       0   1   4         0
+    ## 2  Freshman Project T1 Survey        BIS       BIS_2       0   1   4         0
+    ## 3  Freshman Project T1 Survey        BIS       BIS_3       0   1   4         0
+    ## 4  Freshman Project T1 Survey        BIS       BIS_4       0   1   4         0
+    ## 5  Freshman Project T1 Survey        BIS       BIS_5       0   1   4         0
+    ## 6  Freshman Project T1 Survey        BIS       BIS_6       1   1   4         0
+    ## 7  Freshman Project T1 Survey        BIS       BIS_7       1   1   4         0
+    ## 8  Freshman Project T1 Survey        BIS       BIS_8       1   1   4         0
+    ## 9  Freshman Project T1 Survey        BIS       BIS_9       1   1   4         0
+    ## 10 Freshman Project T1 Survey        BIS      BIS_10       1   1   4         0
+    ## 11 Freshman Project T1 Survey        BIS      BIS_11       0   1   4         0
+    ## 12 Freshman Project T1 Survey        BIS      BIS_12       0   1   4         0
+    ## 13 Freshman Project T1 Survey        BIS      BIS_13       1   1   4         0
+    ## 14 Freshman Project T1 Survey        BIS      BIS_14       0   1   4         0
+    ## 15 Freshman Project T1 Survey        BIS      BIS_15       0   1   4         0
+    ##    Nonplanning_Impulsivity_T1 Motor_Impulsivity_T1 Attentional_Impulsivity_T1
+    ## 1                           0                  sum                          0
+    ## 2                           0                  sum                          0
+    ## 3                           0                  sum                          0
+    ## 4                           0                  sum                          0
+    ## 5                           0                  sum                          0
+    ## 6                         sum                    0                          0
+    ## 7                         sum                    0                          0
+    ## 8                         sum                    0                          0
+    ## 9                         sum                    0                          0
+    ## 10                        sum                    0                          0
+    ## 11                          0                    0                        sum
+    ## 12                          0                    0                        sum
+    ## 13                          0                    0                        sum
+    ## 14                          0                    0                        sum
+    ## 15                          0                    0                        sum
+    ##    Total
+    ## 1    sum
+    ## 2    sum
+    ## 3    sum
+    ## 4    sum
+    ## 5    sum
+    ## 6    sum
+    ## 7    sum
+    ## 8    sum
+    ## 9    sum
+    ## 10   sum
+    ## 11   sum
+    ## 12   sum
+    ## 13   sum
+    ## 14   sum
+    ## 15   sum
 
-Scoring rubrics should exist in `rubric_dir` and be named according to the following convention: `[measure]_scoring_rubric.csv`
+Scoring rubrics should exist in `rubric_dir` and be named according to
+the following convention: `[measure]_scoring_rubric.csv`
 
 ``` r
 # specify rubric paths
@@ -217,12 +247,17 @@ head(scoring_data_long[, -1], 10)
 -   convert missing values to NA
 -   duplicates
 
-First, exclude responses that are not subject responses. In this dataset, some subjects have their ID in the `ExternalDataReference` column only, so we'll need to add that to the `SID` column before filtering. There are also some test responses that match our SID pattern, so we'll want to exclude those using the `exclude_SID` pattern.
+First, exclude responses that are not subject responses.
+
+In this dataset, some subjects have their ID in the `ExternalReference`
+column only, so we’ll need to add that to the `SID` column before
+filtering. There are also some test responses that match our SID
+pattern, so we’ll want to exclude those using the `exclude_SID` pattern.
 
 ``` r
 surveys_long_sub = surveys_long %>%
-  mutate(SID = ifelse(is.na(SID), ExternalDataReference, SID)) %>%
-  select(-ExternalDataReference) %>%
+  mutate(SID = ifelse(is.na(SID), ExternalReference, SID)) %>%
+  select(-ExternalReference) %>%
   filter(grepl(sid_pattern, SID)) %>%
   filter(!grepl(exclude_sid, SID)) %>%
   arrange(SID)
@@ -231,11 +266,10 @@ surveys_long_sub = surveys_long %>%
 unique(surveys_long_sub$SID)
 ```
 
-    ##  [1] "FP001" "FP002" "FP003" "FP004" "FP005" "FP006" "FP007" "FP008"
-    ##  [9] "FP009" "FP010" "FP011" "FP012" "FP013" "FP014" "FP015" "FP016"
-    ## [17] "FP017" "FP018" "FP019" "FP020" "FP021" "FP022" "FP023" "FP024"
-    ## [25] "FP025" "FP026" "FP027" "FP028" "FP029" "FP030" "FP031" "FP032"
-    ## [33] "FP034" "FP035"
+    ##  [1] "FP001" "FP002" "FP003" "FP004" "FP005" "FP006" "FP007" "FP008" "FP009"
+    ## [10] "FP010" "FP011" "FP012" "FP013" "FP014" "FP015" "FP016" "FP017" "FP018"
+    ## [19] "FP019" "FP020" "FP021" "FP022" "FP023" "FP024" "FP025" "FP026" "FP027"
+    ## [28] "FP028" "FP029" "FP030" "FP031" "FP032" "FP034" "FP035"
 
 Convert missing values to NA.
 
@@ -254,17 +288,28 @@ surveys_long_na %>%
   head(., 10)
 ```
 
-    ##            item                                value
-    ## 1  CARE_EI_22OD                                 MDMA
-    ## 2         CVS_1                             18 years
-    ## 3        CVS_15                                3.47?
-    ## 4        CVS_16                         3. Something
-    ## 5        CVS_16                                 3.7?
-    ## 6         CVS_3 caucasian, american indian  (Seneca)
-    ## 7         CVS_3                             hispanic
-    ## 8         CVS_3                            caucasion
-    ## 9         CVS_3                            Caucasian
-    ## 10        CVS_3                                white
+    ##        item
+    ##  1: CARE_EI
+    ##  2: CARE_EI
+    ##  3: CARE_EI
+    ##  4: CARE_EI
+    ##  5: CARE_EI
+    ##  6: CARE_EI
+    ##  7: CARE_EI
+    ##  8: CARE_EI
+    ##  9: CARE_EI
+    ## 10: CARE_EI
+    ##                                                                    value
+    ##  1:                                                              5 weeks
+    ##  2:                                                              1 month
+    ##  3:                                                               1 year
+    ##  4:                                                             7 months
+    ##  5:                                                             4 months
+    ##  6:                                                              2 years
+    ##  7:                                                             16 weeks
+    ##  8:  A regular partner is someone that I have dated for at least 8 weeks
+    ##  9:                                                     3 months or more
+    ## 10: A regular partner is someone that I have dated for at least 8 weeks.
 
 Make manual edits before converting values to numeric during scoring
 
@@ -282,7 +327,9 @@ surveys_long_num = surveys_long_na %>%
                  ifelse(SID == "FP006" & item == "CVS_16", "3.7", value)))))
 ```
 
-Check for duplicate responses. There is a `clean_dupes` function that can do this, but since we have multiple waves with the same surveys, we're going to do this homebrew.
+Check for duplicate responses. There is a `clean_dupes` function that
+can do this, but since we have multiple waves with the same surveys,
+we’re going to do this homebrew.
 
 ``` r
 surveys_long_num %>%
@@ -299,39 +346,25 @@ surveys_long_num %>%
     ##   <chr>                              <chr> <int>
     ## 1 Freshman Project T2 Survey (Pilot) FP002     2
 
-Since FP002 appears to have taken the T2 survey twice, we're simply going to randomly select based on the qid
+Since FP002 appears to have taken the T2 survey twice, we’re simply
+going to randomly select based on the qid.
 
 ``` r
 surveys_long_clean = surveys_long_num %>%
-  filter(!qid == "R_11YpEE2pH9Ozqvk") %>%
-  select(-qid)
+  filter(!ResponseId == "R_11YpEE2pH9Ozqvk") %>%
+  select(-ResponseId)
 ```
 
 First, get only the items used in the scoring rubrics.
 
 ``` r
-get_items_in_rubric_nonnumeric <- function(dataDF, rubricDF){
-  dataDT <- as.data.table(dataDF)
-  rubricCols <- rubricDF$column_name[rubricDF$include %in% c(1, "1", "sum", "prod", "I")]
-  smallDF <- as.data.frame(dataDT[item %in% rubricCols])
-  return(smallDF)
-}
-
-scoring = get_items_in_rubric_nonnumeric(surveys_long_clean, scoring_data_long)
+scoring = scorequaltrics::get_rubrics(scoring_rubrics, type = 'scoring')
 ```
-
-### Scoring almost all at once
-
-From John:
-
-> There are a few different options for scoring questionnaires. First, we can provide a rubric and data to `scorequaltrics::score_questionnaire(dataDF, rubricsDF, psych = TRUE)`, which will use the `psych` package to do the scoring. This has the advantage that you get back a lot of information about the measurement quality of the scale, but it only works for scales that follow certain psychometric principles (e.g., each item is rated on a continuous scale, and is an indicator of a latent construct). It won't work well for other kinds of data (like scales where you want to know the number of risky behaviors, for example). The second option is to use `scorequaltrics::score_step_one_and_two(dataDF, rubricsDF)` which was created to take care of several special cases for the TDS project questionnaires. The RPI, and RSQ both require special handling because of their idiosyncratic questionnaire design.
 
 ### Score the questionnaires
 
-Use the modified function to score the questionnaires
-
 ``` r
-scored = score_questionnaire(scoring, scoring_data_long, SID = "SID", psych = FALSE)
+scored = scorequaltrics::score_questionnaire(surveys_long_clean, scoring, SID = "SID", psych = FALSE)
 
 # print first 200 rows
 head(scored, 200)
@@ -339,45 +372,18 @@ head(scored, 200)
 
     ## # A tibble: 200 x 8
     ## # Groups:   survey_name, scale_name, scored_scale [6]
-    ##    survey_name scale_name scored_scale SID   score n_items n_missing method
-    ##    <chr>       <chr>      <chr>        <chr> <chr>   <int>     <int> <chr> 
-    ##  1 Freshman P… CVS        ethnicity_t… FP001 cauc…       1         0 I     
-    ##  2 Freshman P… CVS        ethnicity_t… FP002 hisp…       1         0 I     
-    ##  3 Freshman P… CVS        ethnicity_t… FP003 cauc…       1         0 I     
-    ##  4 Freshman P… CVS        ethnicity_t… FP004 Cauc…       1         0 I     
-    ##  5 Freshman P… CVS        ethnicity_t… FP005 white       1         0 I     
-    ##  6 Freshman P… CVS        ethnicity_t… FP006 White       1         0 I     
-    ##  7 Freshman P… CVS        ethnicity_t… FP007 Cauc…       1         0 I     
-    ##  8 Freshman P… CVS        ethnicity_t… FP008 White       1         0 I     
-    ##  9 Freshman P… CVS        ethnicity_t… FP009 white       1         0 I     
-    ## 10 Freshman P… CVS        ethnicity_t… FP010 White       1         0 I     
-    ## # … with 190 more rows
-
-### Convert score to numerical
-
-``` r
-scored_num = scored %>%
-  mutate(score = ifelse(score == "NaN", NA, score),
-         score = as.numeric(score))
-
-# print first 200 rows
-head(scored_num, 200)
-```
-
-    ## # A tibble: 200 x 8
-    ## # Groups:   survey_name, scale_name, scored_scale [6]
-    ##    survey_name scale_name scored_scale SID   score n_items n_missing method
-    ##    <chr>       <chr>      <chr>        <chr> <dbl>   <int>     <int> <chr> 
-    ##  1 Freshman P… CVS        ethnicity_t… FP001    NA       1         0 I     
-    ##  2 Freshman P… CVS        ethnicity_t… FP002    NA       1         0 I     
-    ##  3 Freshman P… CVS        ethnicity_t… FP003    NA       1         0 I     
-    ##  4 Freshman P… CVS        ethnicity_t… FP004    NA       1         0 I     
-    ##  5 Freshman P… CVS        ethnicity_t… FP005    NA       1         0 I     
-    ##  6 Freshman P… CVS        ethnicity_t… FP006    NA       1         0 I     
-    ##  7 Freshman P… CVS        ethnicity_t… FP007    NA       1         0 I     
-    ##  8 Freshman P… CVS        ethnicity_t… FP008    NA       1         0 I     
-    ##  9 Freshman P… CVS        ethnicity_t… FP009    NA       1         0 I     
-    ## 10 Freshman P… CVS        ethnicity_t… FP010    NA       1         0 I     
+    ##    survey_name    scale_name scored_scale SID   score   n_items n_missing method
+    ##    <chr>          <chr>      <chr>        <chr> <I<chr>   <int>     <int> <chr> 
+    ##  1 Freshman Proj… CVS        ethnicity_t… FP001 caucas…       1         0 I     
+    ##  2 Freshman Proj… CVS        ethnicity_t… FP002 hispan…       1         0 I     
+    ##  3 Freshman Proj… CVS        ethnicity_t… FP003 caucas…       1         0 I     
+    ##  4 Freshman Proj… CVS        ethnicity_t… FP004 Caucas…       1         0 I     
+    ##  5 Freshman Proj… CVS        ethnicity_t… FP005 white         1         0 I     
+    ##  6 Freshman Proj… CVS        ethnicity_t… FP006 White         1         0 I     
+    ##  7 Freshman Proj… CVS        ethnicity_t… FP007 Caucas…       1         0 I     
+    ##  8 Freshman Proj… CVS        ethnicity_t… FP008 White         1         0 I     
+    ##  9 Freshman Proj… CVS        ethnicity_t… FP009 white         1         0 I     
+    ## 10 Freshman Proj… CVS        ethnicity_t… FP010 White         1         0 I     
     ## # … with 190 more rows
 
 Plots
@@ -385,10 +391,12 @@ Plots
 
 ### Distributions
 
-Grouped by scale
+#### Grouped by scale
 
 ``` r
-scored_num %>%
+scored %>%
+  filter(!method == "I") %>% # filter out non-numeric data
+  mutate(score = as.numeric(score)) %>%
   group_by(scale_name) %>%
     do({
       plot = ggplot(., aes(scored_scale, score)) +
@@ -416,11 +424,12 @@ scored_num %>%
     ## # Groups:   scale_name [0]
     ## # … with 1 variable: scale_name <chr>
 
-Grouped by scored scale
+#### Grouped by scored scale
 
 ``` r
-scored_num %>%
-  filter(!scored_scale == "ethnicity_text") %>%
+scored %>%
+  filter(!method == "I") %>% # filter out non-numeric data
+  mutate(score = as.numeric(score)) %>%
   group_by(scale_name, scored_scale) %>%
     do({
       plot = ggplot(., aes(scored_scale, score)) +
@@ -450,7 +459,9 @@ scored_num %>%
 ### Proportion of missing data
 
 ``` r
-scored_num %>%
+scored %>%
+  filter(!method == "I") %>% # filter out non-numeric data
+  mutate(score = as.numeric(score)) %>%
   group_by(scale_name) %>%
     do({
       plot = ggplot(., aes(scored_scale, n_missing)) +
@@ -483,7 +494,9 @@ scored_num %>%
 For those variables that were measured more than once, plot changes.
 
 ``` r
-scored_num %>%
+scored %>%
+  filter(!method == "I") %>% # filter out non-numeric data
+  mutate(score = as.numeric(score)) %>%
   extract(survey_name, "wave", ".*([0-9]{1}).*", remove = FALSE) %>%
   group_by(scale_name, scored_scale) %>%
   mutate(nrow = n()) %>%
@@ -518,7 +531,9 @@ scored_num %>%
 ### Correlations
 
 ``` r
-scored_num %>%
+scored %>%
+  filter(!method == "I") %>% # filter out non-numeric data
+  mutate(score = as.numeric(score)) %>%
   filter(!scale_name == "CVS") %>%
   extract(survey_name, "wave", ".*(T[0-9]{1}).*", remove = FALSE) %>%
   mutate(var.name = paste(scale_name, scored_scale, wave, sep = " ")) %>%
